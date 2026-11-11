@@ -247,7 +247,8 @@ function send(res, status, obj) {
   res.end(JSON.stringify(obj));
 }
 
-const server = http.createServer(async (req, res) => {
+// 요청 처리 본체 — 로컬(node server.js)과 Vercel 함수(api/[route].js)가 함께 사용
+async function handle(req, res) {
   const u = new URL(req.url, `http://localhost:${PORT}`);
   try {
     if (u.pathname === "/" || u.pathname === "/index.html") {
@@ -337,9 +338,13 @@ const server = http.createServer(async (req, res) => {
     console.error("relay_error", u.pathname, e.cause || e);
     send(res, 502, { error: "relay_error", message: String(e.message || e) });
   }
-});
+}
+// Vercel은 루트의 server.js를 진입점으로 인식해 모든 요청을 이 함수(기본 내보내기)로 보낸다.
+module.exports = handle;
+module.exports.handle = handle;
 
-server.listen(PORT, () => {
+// 직접 실행할 때만 로컬 서버를 띄움
+if (require.main === module) http.createServer(handle).listen(PORT, () => {
   console.log(`보유 주식 대시보드: http://localhost:${PORT}  (K Skill 프록시: ${PROXY})`);
   console.log(`당일 현재가(토스증권): ${tossCreds() ? "TOSSINVEST_CLIENT_ID/SECRET 설정됨" : "키 없음 → KRX 최근 종가만 사용"}`);
   console.log(`DART 공시: ${dartKey() ? "API_K_DART 설정됨" : "API_K_DART 없음 → 공시 탭에 설정 안내 표시"}`);

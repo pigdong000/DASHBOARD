@@ -14,6 +14,16 @@ node --use-system-ca server.js
 브라우저에서 http://localhost:8000 을 엽니다.
 `--use-system-ca`는 사내망 인증서 환경에서 필요합니다.
 
+## 배포 (Vercel)
+
+운영 주소: https://stock-dashboard-phi-gray-96.vercel.app
+
+```bash
+npx vercel deploy --prod
+```
+
+Vercel은 루트의 `server.js`를 진입점으로 인식해 모든 요청을 이 파일이 내보내는 처리 함수로 보냅니다. 인증키는 `.env` 대신 Vercel 프로젝트 환경변수(Settings → Environment Variables)에 넣습니다.
+
 ## 기능
 
 - **대시보드**: 종목 검색 후 추가, 총 평가금액·전일대비·평가손익·수익률, 종목별 비중 도넛 차트, 보유 종목 표(수량·평단 수정과 삭제 가능)
