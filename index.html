@@ -1,0 +1,609 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>내 주식 대시보드</title>
+<style>
+:root{
+  --bg:#f6f7f9; --card:#ffffff; --text:#14171c; --muted:#6b7280; --line:#e5e7eb;
+  --accent:#3b5bdb; --up:#d6336c; --down:#1c7ed6; --chip:#eef1f6;
+  --c1:#3b5bdb; --c2:#0ca678; --c3:#f08c00; --c4:#ae3ec9; --c5:#e8590c; --c6:#1098ad; --c7:#5c940d; --c8:#868e96;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f1115; --card:#171a21; --text:#e8eaed; --muted:#9aa0a6; --line:#2a2f3a;
+    --accent:#748ffc; --up:#ff6b8f; --down:#4dabf7; --chip:#222733;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0f1115; --card:#171a21; --text:#e8eaed; --muted:#9aa0a6; --line:#2a2f3a;
+  --accent:#748ffc; --up:#ff6b8f; --down:#4dabf7; --chip:#222733;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:"Pretendard","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;font-size:14px}
+.wrap{max-width:1100px;margin:0 auto;padding:24px 16px 48px}
+header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-bottom:20px}
+h1{font-size:22px;margin:0}
+.sub{color:var(--muted);font-size:13px;margin-top:4px}
+.badge{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;background:var(--chip);font-size:12px;color:var(--muted)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+.badge.live .dot{background:#0ca678}.badge.demo .dot{background:#f08c00}
+button{font:inherit;cursor:pointer;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--text);padding:8px 12px}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+button:disabled{opacity:.5;cursor:default}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+.kpi .label{color:var(--muted);font-size:12px}
+.kpi .value{font-size:22px;font-weight:700;margin-top:6px;font-variant-numeric:tabular-nums}
+.kpi .delta{font-size:13px;margin-top:4px;font-variant-numeric:tabular-nums}
+.up{color:var(--up)}.down{color:var(--down)}
+.grid2{display:grid;grid-template-columns:320px 1fr;gap:16px;margin-bottom:16px}
+h2{font-size:15px;margin:0 0 14px}
+.donut-wrap{display:flex;flex-direction:column;align-items:center;gap:14px}
+.legend{width:100%;display:flex;flex-direction:column;gap:6px}
+.legend div{display:flex;align-items:center;gap:8px;font-size:13px}
+.legend .sw{width:10px;height:10px;border-radius:3px;flex:none}
+.legend .pct{margin-left:auto;color:var(--muted);font-variant-numeric:tabular-nums}
+form.add{display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:8px;align-items:end}
+label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted)}
+input{font:inherit;padding:9px 10px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--text);width:100%}
+.search{position:relative;display:flex;flex-direction:column;gap:4px}
+.search>label{display:block}
+.results{position:absolute;top:100%;left:0;right:0;z-index:5;background:var(--card);border:1px solid var(--line);border-radius:8px;margin-top:4px;max-height:240px;overflow:auto;display:none;box-shadow:0 8px 24px rgba(0,0,0,.12)}
+.results div{padding:8px 10px;cursor:pointer;display:flex;justify-content:space-between;gap:8px}
+.results div:hover,.results div.active{background:var(--chip)}
+.results small{color:var(--muted)}
+.results .rnote{cursor:default;background:none!important;border-top:1px solid var(--line)}
+.results .rnote small{color:#f08c00}
+.picked{font-size:12px;color:var(--accent);margin-top:6px;min-height:16px}
+.table-scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;min-width:760px}
+th,td{padding:10px 8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th{color:var(--muted);font-weight:500;font-size:12px}
+th:first-child,td:first-child{text-align:left}
+td .nm{font-weight:600}td .cd{color:var(--muted);font-size:12px}
+td input{width:90px;padding:5px 6px;text-align:right}
+.del{border:none;background:none;color:var(--muted);padding:4px 6px}
+.del:hover{color:var(--up)}
+.empty{color:var(--muted);text-align:center;padding:28px}
+.note{color:var(--muted);font-size:12px;margin-top:14px;line-height:1.6}
+.warn{background:color-mix(in srgb,#f08c00 12%,transparent);border:1px solid color-mix(in srgb,#f08c00 40%,transparent);color:var(--text);border-radius:10px;padding:10px 12px;font-size:13px;margin-bottom:16px;display:none}
+/* 탭 */
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:16px}
+.tab{border:none;background:none;border-radius:0;padding:10px 14px;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px}
+.tab.on{color:var(--text);border-bottom-color:var(--accent);font-weight:600}
+.cnt{font-size:11px;background:var(--chip);border-radius:999px;padding:1px 7px;margin-left:4px;color:var(--muted)}
+/* 게시판 */
+.board-bar{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-bottom:12px;padding:12px 14px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border-radius:999px;padding:5px 11px;font-size:13px;background:var(--chip);border:1px solid transparent}
+.chip.on{background:var(--accent);color:#fff}
+.bar-right{display:flex;gap:8px;align-items:center}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:none;border-radius:0;padding:6px 11px}
+.seg button.on{background:var(--chip);font-weight:600}
+.posts{display:flex;flex-direction:column;gap:10px;margin-bottom:16px}
+.post{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.post .meta{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12px;color:var(--muted);margin-bottom:6px}
+.tag{font-size:11px;font-weight:600;padding:2px 7px;border-radius:5px}
+.tag.disclosure{background:color-mix(in srgb,#ae3ec9 16%,transparent);color:#ae3ec9}
+.tag.news{background:color-mix(in srgb,#1098ad 16%,transparent);color:#1098ad}
+.tag.stock{background:var(--chip);color:var(--text);font-weight:500}
+.post a.ttl{font-size:15px;font-weight:600;color:var(--text);text-decoration:none;line-height:1.45}
+.post a.ttl:hover{text-decoration:underline}
+.post .sum{margin:6px 0 0;color:var(--text);opacity:.85;line-height:1.55;font-size:13px}
+.post .src{margin-top:10px;padding-top:8px;border-top:1px dashed var(--line);font-size:12px;color:var(--muted);line-height:1.6}
+.post .src a{color:var(--accent)}
+.src-card{margin-bottom:16px}
+.src-table{min-width:720px;font-size:12px}
+.src-table td,.src-table th{text-align:left;white-space:normal;vertical-align:top}
+.src-notes{padding-left:18px}
+.loading{color:var(--muted);text-align:center;padding:30px}
+.pdate{color:var(--muted);font-size:11px}
+@media (max-width:860px){.kpis{grid-template-columns:repeat(2,1fr)}.grid2{grid-template-columns:1fr}form.add{grid-template-columns:1fr 1fr}form.add .search{grid-column:1/-1}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>내 주식 대시보드</h1>
+      <div class="sub" id="baseDate">기준일 -</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <span class="badge" id="srcBadge"><span class="dot"></span><span id="srcText">시세 확인 중</span></span>
+      <button id="refreshBtn">시세 새로고침</button>
+    </div>
+  </header>
+
+  <nav class="tabs" role="tablist">
+    <button role="tab" class="tab on" data-view="dash" aria-selected="true">대시보드</button>
+    <button role="tab" class="tab" data-view="board" aria-selected="false">정보 게시판 <span class="cnt" id="boardCnt"></span></button>
+  </nav>
+
+  <!-- ================= 정보 게시판 ================= -->
+  <div id="viewBoard" hidden>
+    <section class="card board-bar">
+      <div class="chips" id="stockChips"></div>
+      <div class="bar-right">
+        <div class="seg" id="typeSeg">
+          <button data-type="all" class="on">전체</button><button data-type="disclosure">공시</button><button data-type="news">뉴스</button>
+        </div>
+        <button id="boardReload">새로 불러오기</button>
+      </div>
+    </section>
+    <div class="warn" id="boardWarn"></div>
+    <section id="posts" class="posts"></section>
+
+    <section class="card src-card">
+      <h2>출처 및 근거</h2>
+      <div class="table-scroll"><table class="src-table">
+        <thead><tr><th>구분</th><th>제공처 (원천 데이터)</th><th>조회 경로</th><th>조회 조건</th><th>조회 시각 (KST)</th><th>건수</th></tr></thead>
+        <tbody id="srcBody"></tbody>
+      </table></div>
+      <ul class="note src-notes">
+        <li><b>공시</b>: 금융감독원 전자공시시스템(DART) OpenAPI 공시검색 결과입니다. 각 글의 <b>접수번호</b>로 DART 원문을 바로 확인할 수 있으며, 원문이 최종 근거입니다.</li>
+        <li><b>뉴스</b>: 네이버 검색 Open API 뉴스 결과를 K Skill(<code>naver-news-search</code>)로 받아왔습니다. 요약문은 API가 준 기사 일부 발췌이므로 사실로 단정하지 말고 원문 링크로 확인하세요. 종목명이 제목·요약에 들어간 기사만 남겼습니다.</li>
+        <li><b>시세</b>(대시보드): KRX 일별 종가를 K Skill(<code>korean-stock-search</code>)로 받아왔습니다. 실시간 체결가가 아닙니다.</li>
+        <li>이 화면은 정보를 모아 보여줄 뿐이며 투자 조언이 아닙니다.</li>
+      </ul>
+    </section>
+  </div>
+
+  <!-- ================= 대시보드 ================= -->
+  <div id="viewDash">
+  <div class="warn" id="warn"></div>
+  <div class="warn" id="dateNote"></div>
+
+  <section class="kpis">
+    <div class="card kpi"><div class="label">총 평가금액</div><div class="value" id="kTotal">-</div><div class="delta" id="kDay"></div></div>
+    <div class="card kpi"><div class="label">총 매입금액</div><div class="value" id="kCost">-</div><div class="delta" id="kCostNote" style="color:var(--muted)"></div></div>
+    <div class="card kpi"><div class="label">평가손익</div><div class="value" id="kPnl">-</div><div class="delta" id="kPnlRate"></div></div>
+    <div class="card kpi"><div class="label">보유 종목</div><div class="value" id="kCount">-</div><div class="delta" id="kTop" style="color:var(--muted)"></div></div>
+  </section>
+
+  <section class="grid2">
+    <div class="card">
+      <h2>종목별 비중</h2>
+      <div class="donut-wrap">
+        <svg id="donut" width="200" height="200" viewBox="0 0 200 200" role="img" aria-label="종목별 평가금액 비중"></svg>
+        <div class="legend" id="legend"></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>종목 추가</h2>
+      <form class="add" id="addForm" autocomplete="off">
+        <div class="search">
+          <label for="q">종목명 또는 코드</label>
+          <input id="q" placeholder="예: 삼성전자, 005930">
+          <div class="results" id="results" role="listbox"></div>
+        </div>
+        <label>보유 수량<input id="qty" type="number" min="1" step="1" placeholder="10"></label>
+        <label>평균 매입가(선택)<input id="avg" type="number" min="0" step="1" placeholder="원"></label>
+        <button class="primary" id="addBtn" type="submit" disabled>추가</button>
+      </form>
+      <div class="picked" id="picked"></div>
+      <p class="note">종목 검색과 시세는 K Skill(<code>korean-stock-search</code>)의 k-skill-proxy를 통해 KRX 공식 데이터를 받아옵니다. 시세는 일별 종가 기준이며 실시간 체결가가 아닙니다. 보유 내역은 이 브라우저에만 저장됩니다.</p>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>보유 종목</h2>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>종목</th><th>수량</th><th>평균 매입가</th><th>현재가</th><th>전일대비</th><th>평가금액</th><th>평가손익</th><th>비중</th><th></th></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <p class="note">KRX 공식 데이터 기준 · 투자 조언 아님</p>
+  </section>
+  </div><!-- /viewDash -->
+</div>
+
+<script>
+// ---------- 설정 ----------
+// http로 열면 같은 서버, 파일(file://)로 열면 로컬 중계 서버(localhost:8000)를 사용.
+// 중계 서버에 연결할 수 없을 때만 데모 모드(API=null)로 전환.
+let API = location.protocol.startsWith("http") ? "" : "http://localhost:8000";
+const STORE_KEY = "kskill-stock-dashboard-v1";
+const COLORS = ["--c1","--c2","--c3","--c4","--c5","--c6","--c7","--c8"].map(v=>`var(${v})`);
+
+// 시세를 못 받을 때 쓰는 데모 시세 (실제 시세 아님)
+const DEMO = {
+  "005930":{name:"삼성전자",market:"KOSPI",close:71500,change:800},
+  "000660":{name:"SK하이닉스",market:"KOSPI",close:198000,change:-3500},
+  "035420":{name:"NAVER",market:"KOSPI",close:182300,change:1200},
+  "035720":{name:"카카오",market:"KOSPI",close:38450,change:-250},
+  "005380":{name:"현대차",market:"KOSPI",close:241000,change:2500},
+  "373220":{name:"LG에너지솔루션",market:"KOSPI",close:362000,change:-4000},
+  "196170":{name:"알테오젠",market:"KOSDAQ",close:312500,change:6500},
+  "247540":{name:"에코프로비엠",market:"KOSDAQ",close:128900,change:-1900},
+};
+const SAMPLE = [
+  {code:"005930",name:"삼성전자",market:"KOSPI",qty:30,avg:68000},
+  {code:"000660",name:"SK하이닉스",market:"KOSPI",qty:8,avg:175000},
+  {code:"035420",name:"NAVER",market:"KOSPI",qty:5,avg:205000},
+  {code:"035720",name:"카카오",market:"KOSPI",qty:40,avg:45200},
+  {code:"196170",name:"알테오젠",market:"KOSDAQ",qty:3,avg:270000},
+];
+
+// ---------- 상태 ----------
+let holdings = load();
+let quotes = {};        // code -> {close, change, rate, date, source}
+let picked = null;
+
+function load(){
+  try{ const v = JSON.parse(localStorage.getItem(STORE_KEY)); if(Array.isArray(v)) return v; }catch(e){}
+  return SAMPLE.map(h=>({...h}));
+}
+function save(){ try{ localStorage.setItem(STORE_KEY, JSON.stringify(holdings)); }catch(e){} }
+
+// ---------- 포맷 ----------
+const won = n => n==null||isNaN(n) ? "-" : Math.round(n).toLocaleString("ko-KR")+"원";
+const big = n => {
+  if(n==null||isNaN(n)) return "-";
+  const a=Math.abs(n), s=n<0?"-":"";
+  if(a>=1e8) return s+(a/1e8).toFixed(a>=1e10?0:2).replace(/\.?0+$/,"")+"억원";
+  if(a>=1e4) return s+Math.round(a/1e4).toLocaleString("ko-KR")+"만원";
+  return won(n);
+};
+const sign = n => n>0?"+":"";
+const cls = n => n>0?"up":n<0?"down":"";
+const pct = n => n==null||isNaN(n)?"-":sign(n)+n.toFixed(2)+"%";
+const fmtDate = d => d && d.length===8 ? `${d.slice(0,4)}.${d.slice(4,6)}.${d.slice(6)}` : "-";
+const esc = s => String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+// ---------- K Skill 시세 ----------
+function demoQuote(h){
+  const d = DEMO[h.code];
+  let close, change;
+  if(d){ close=d.close; change=d.change; }
+  else { // 데모 표에 없는 종목은 평단 근처의 고정 가상값
+    let x=0; for(const c of h.code) x=(x*31+c.charCodeAt(0))%997;
+    close = Math.round((h.avg||50000)*(0.85+x/997*0.3)/10)*10; change=Math.round(close*((x%7)-3)/300/10)*10;
+  }
+  return {close, change, rate: change/(close-change)*100, date:null, source:"demo"};
+}
+
+async function fetchQuote(h){
+  if(API===null) return {q:demoQuote(h), err:"중계 서버(node stock-dashboard/server.js)가 꺼져 있어 데모 시세를 표시합니다."};
+  try{
+    const r = await fetch(`${API}/api/quote?market=${encodeURIComponent(h.market)}&code=${encodeURIComponent(h.code)}`);
+    const j = await r.json();
+    if(r.ok && j.item && j.item.close_price!=null){
+      const it=j.item, num=v=>v==null?null:+v;
+      return {q:{close:+it.close_price, change:num(it.change_price), rate:num(it.fluctuation_rate), date:it.base_date, source:"live",
+        via:it.price_source||"krx", time:it.price_time||null, prevDate:it.prev_close_date||null,
+        today:it.today||null, tossConfigured:j.toss?.configured, tossError:j.toss?.error||null}};
+    }
+    return {q:demoQuote(h), err:j.message||j.error||`HTTP ${r.status}`};
+  }catch(e){
+    return {q:demoQuote(h), err:"중계 서버에 연결하지 못했습니다."};
+  }
+}
+
+async function refresh(){
+  const btn=document.getElementById("refreshBtn");
+  btn.disabled=true; btn.textContent="불러오는 중…";
+  const res = await Promise.all(holdings.map(fetchQuote));
+  const errs=[];
+  res.forEach((r,i)=>{ quotes[holdings[i].code]=r.q; if(r.err) errs.push(r.err); });
+  const live = res.filter(r=>r.q.source==="live").length;
+  const badge=document.getElementById("srcBadge"), txt=document.getElementById("srcText"), warn=document.getElementById("warn");
+  if(!holdings.length){ badge.className="badge"; txt.textContent="보유 종목 없음"; warn.style.display="none"; }
+  else if(live===holdings.length){ badge.className="badge live"; txt.textContent="K Skill 시세 (KRX 일별)"; warn.style.display="none"; }
+  else{
+    badge.className="badge demo"; txt.textContent = live? `일부 데모 시세 (${live}/${holdings.length} 실시세)` : "데모 시세";
+    warn.style.display="block";
+    warn.innerHTML = `<b>K Skill 시세를 받지 못해 데모 시세로 표시 중입니다.</b> 원인: ${esc([...new Set(errs)][0]||"알 수 없음")}<br>데모 시세는 화면 시연용 가상 값입니다. 프록시가 복구되면 [시세 새로고침]만 누르면 실시세로 바뀝니다.`;
+  }
+  btn.disabled=false; btn.textContent="시세 새로고침";
+  render();
+}
+
+// ---------- 렌더 ----------
+function render(){
+  const rows = holdings.map(h=>{
+    const q=quotes[h.code]||{};
+    const value = q.close!=null ? q.close*h.qty : null;
+    const cost = h.avg ? h.avg*h.qty : null;
+    const dayChg = q.change!=null ? q.change*h.qty : null;
+    return {...h, q, value, cost, pnl: value!=null&&cost!=null? value-cost : null, dayChg};
+  });
+  const total = rows.reduce((s,r)=>s+(r.value||0),0);
+  const withCost = rows.filter(r=>r.cost!=null&&r.value!=null);
+  const cost = withCost.reduce((s,r)=>s+r.cost,0);
+  const pnl = withCost.reduce((s,r)=>s+r.pnl,0);
+  const day = rows.reduce((s,r)=>s+(r.dayChg||0),0);
+  const prevTotal = total-day;
+
+  const set=(id,html,c)=>{const el=document.getElementById(id); el.innerHTML=html; if(c!==undefined) el.className=el.className.replace(/\b(up|down)\b/g,"").trim()+(c?" "+c:"");};
+  set("kTotal", big(total));
+  set("kDay", `전일대비 ${sign(day)}${big(day)} (${pct(prevTotal? day/prevTotal*100 : 0)})`, "delta "+cls(day));
+  set("kCost", withCost.length? big(cost) : "-");
+  set("kCostNote", withCost.length<rows.length && rows.length ? `평균 매입가 입력 ${withCost.length}/${rows.length}종목 기준` : "");
+  set("kPnl", withCost.length? sign(pnl)+big(pnl) : "-", "value "+cls(pnl));
+  set("kPnlRate", withCost.length&&cost? `수익률 ${pct(pnl/cost*100)}` : "평균 매입가를 입력하면 계산됩니다", "delta "+(withCost.length?cls(pnl):""));
+  set("kCount", rows.length+"종목");
+  const sorted=[...rows].filter(r=>r.value).sort((a,b)=>b.value-a.value);
+  set("kTop", sorted[0]? `최대 비중: ${esc(sorted[0].name)} ${(sorted[0].value/total*100).toFixed(1)}%` : "");
+
+  // 가격 기준 표시: 토스 현재가(오늘) / KRX 일별 종가(기준일)
+  const live=rows.filter(r=>r.q.source==="live");
+  const tossRows=live.filter(r=>r.q.via==="toss"), krxRows=live.filter(r=>r.q.via==="krx");
+  const parts=[];
+  if(tossRows.length){ const t=tossRows.map(r=>r.q.time).filter(Boolean).sort().pop(); parts.push(`현재가 ${t? t.slice(0,16).replace("T"," ") : fmtDate(tossRows[0].q.date)} (토스증권)`); }
+  if(krxRows.length) parts.push(`KRX 종가 ${[...new Set(krxRows.map(r=>r.q.date))].map(fmtDate).join(", ")}`);
+  document.getElementById("baseDate").textContent = parts.length ? "가격 기준: "+parts.join(" · ") : "가격 기준: 데모 시세";
+  // KRX 기준일이 오늘이 아닌데 토스 키가 없으면 이유 안내
+  const stale=krxRows.filter(r=>r.q.today && r.q.date<r.q.today);
+  const dn=document.getElementById("dateNote");
+  const isWeekday=(()=>{ const d=new Date(Date.now()+9*3600e3).getUTCDay(); return d>0&&d<6; })();
+  if(stale.length && isWeekday){
+    const err=stale.find(r=>r.q.tossError)?.q.tossError;
+    dn.innerHTML=`<b>오늘(${fmtDate(stale[0].q.today)}) 종가가 아니라 ${fmtDate(stale[0].q.date)} 종가로 표시 중입니다.</b> K Skill의 KRX 데이터는 당일 종가를 다음 영업일 오전에 공개합니다. `+
+      (err? `토스증권 현재가 조회도 실패했습니다: ${esc(err)}` :
+       `오늘 가격을 보려면 <code>stock-dashboard/.env</code>에 토스증권 Open API 키(<code>TOSSINVEST_CLIENT_ID</code>, <code>TOSSINVEST_CLIENT_SECRET</code>)를 넣고 서버를 다시 시작하세요. K Skill <code>toss-investment</code> 방식으로 현재가를 받아옵니다.`);
+    dn.style.display="block";
+  } else dn.style.display="none";
+
+  // 표
+  const tb=document.getElementById("tbody");
+  if(!rows.length){ tb.innerHTML=`<tr><td colspan="9" class="empty">보유 종목을 추가해 주세요.</td></tr>`; }
+  else tb.innerHTML = rows.map((r,i)=>`
+    <tr>
+      <td><div class="nm">${esc(r.name)}</div><div class="cd">${esc(r.code)} · ${esc(r.market)}${r.q.source==="demo"?" · 데모":""}</div></td>
+      <td><input type="number" min="1" step="1" value="${r.qty}" data-i="${i}" data-f="qty" aria-label="${esc(r.name)} 수량"></td>
+      <td><input type="number" min="0" step="1" value="${r.avg||""}" placeholder="-" data-i="${i}" data-f="avg" aria-label="${esc(r.name)} 평균 매입가"></td>
+      <td>${won(r.q.close)}<br><small class="pdate">${r.q.source!=="live"?"데모": r.q.via==="toss"? "토스 현재가"+(r.q.time?" "+r.q.time.slice(11,16):"") : fmtDate(r.q.date).slice(5)+" 종가"}</small></td>
+      <td class="${cls(r.q.change)}">${r.q.change!=null? sign(r.q.change)+r.q.change.toLocaleString("ko-KR") : "-"}<br><small>${pct(r.q.rate)}</small></td>
+      <td>${won(r.value)}</td>
+      <td class="${cls(r.pnl)}">${r.pnl!=null? sign(r.pnl)+won(r.pnl) : "-"}<br><small>${r.pnl!=null&&r.cost? pct(r.pnl/r.cost*100):""}</small></td>
+      <td>${total&&r.value? (r.value/total*100).toFixed(1)+"%" : "-"}</td>
+      <td><button class="del" data-del="${i}" title="삭제" aria-label="${esc(r.name)} 삭제">✕</button></td>
+    </tr>`).join("");
+
+  // 도넛
+  const svg=document.getElementById("donut"), lg=document.getElementById("legend");
+  const R=80, C=2*Math.PI*R; let acc=0;
+  const segs = sorted.map((r,i)=>{
+    const f=r.value/total, len=f*C, gap=sorted.length>1?2:0;
+    const s=`<circle cx="100" cy="100" r="${R}" fill="none" stroke="${COLORS[i%COLORS.length]}" stroke-width="26"
+      stroke-dasharray="${Math.max(len-gap,0)} ${C}" stroke-dashoffset="${-acc}" transform="rotate(-90 100 100)"><title>${esc(r.name)} ${(f*100).toFixed(1)}%</title></circle>`;
+    acc+=len; return s;
+  }).join("");
+  svg.innerHTML = (segs || `<circle cx="100" cy="100" r="${R}" fill="none" stroke="var(--line)" stroke-width="26"/>`) +
+    `<text x="100" y="94" text-anchor="middle" font-size="12" fill="var(--muted)">총 평가금액</text>
+     <text x="100" y="116" text-anchor="middle" font-size="17" font-weight="700" fill="var(--text)">${big(total)}</text>`;
+  lg.innerHTML = sorted.map((r,i)=>`<div><span class="sw" style="background:${COLORS[i%COLORS.length]}"></span>${esc(r.name)}<span class="pct">${(r.value/total*100).toFixed(1)}%</span></div>`).join("");
+}
+
+// ---------- 표 안에서 수정/삭제 ----------
+document.getElementById("tbody").addEventListener("change",e=>{
+  const t=e.target; if(!t.dataset.f) return;
+  const h=holdings[+t.dataset.i], v=Number(t.value);
+  if(t.dataset.f==="qty"){ if(v>0) h.qty=Math.floor(v); } else { h.avg = v>0? v : null; }
+  save(); render();
+});
+document.getElementById("tbody").addEventListener("click",e=>{
+  const i=e.target.dataset.del; if(i===undefined) return;
+  const [h]=holdings.splice(+i,1); delete quotes[h.code]; save(); refresh();
+});
+
+// ---------- 종목 검색 (K Skill search) ----------
+const qEl=document.getElementById("q"), resEl=document.getElementById("results"), addBtn=document.getElementById("addBtn");
+let timer, results=[], resultsQuery="", active=-1;
+qEl.addEventListener("input",()=>{
+  const q=qEl.value.trim();
+  if(picked && q===picked.name) return;
+  picked=null; document.getElementById("picked").textContent="";
+  addBtn.disabled=!q;   // 선택 안 해도 추가 가능 (제출 시 첫 검색 결과로 확정)
+  clearTimeout(timer);
+  if(!q){ resEl.style.display="none"; return; }
+  timer=setTimeout(()=>search(q),300);
+});
+qEl.addEventListener("keydown",e=>{
+  if(e.isComposing || e.keyCode===229) return;   // 한글 조합 중 Enter 무시
+  if(resEl.style.display!=="block") return;
+  if(e.key==="ArrowDown"||e.key==="ArrowUp"){ e.preventDefault(); active=(active+(e.key==="ArrowDown"?1:-1)+results.length)%results.length; paint(); }
+  else if(e.key==="Enter"&&active>=0){ e.preventDefault(); choose(results[active]); }
+  else if(e.key==="Escape"){ resEl.style.display="none"; }
+});
+document.addEventListener("click",e=>{ if(!e.target.closest(".search")) resEl.style.display="none"; });
+
+let searchNote="";
+async function search(q){
+  const {items, note} = await lookup(q);
+  if(qEl.value.trim()!==q) return;
+  results=items; resultsQuery=q; searchNote=note; active=results.length?0:-1; paint();
+}
+// 반환: {items, note}  note = 오류/누락 안내 문구
+async function lookup(q){
+  if(API===null){ // file:// 로 열었을 때만 데모 목록 사용
+    const items=Object.entries(DEMO).filter(([c,d])=>c.includes(q)||d.name.toLowerCase().includes(q.toLowerCase())).map(([c,d])=>({code:c,name:d.name,market:d.market,kind:"데모"}));
+    return {items, note:"중계 서버가 꺼져 있어 데모 목록(8종목)에서만 검색합니다. node stock-dashboard/server.js 실행 후 새로고침하세요."};
+  }
+  try{
+    const r=await fetch(`${API}/api/search?q=${encodeURIComponent(q)}`); const j=await r.json();
+    if(!r.ok) return {items:[], note:`K Skill 검색 실패: ${j.message||j.error||r.status} — 잠시 후 다시 입력해 보세요.`};
+    const ql=q.toLowerCase();
+    const items=(j.items||[]).map(it=>({code:it.code,name:it.short_name||it.name,market:it.market,kind:it.stock_kind||""}))
+      // 정확히 일치 → 앞부분 일치 → 나머지 순
+      .sort((a,b)=>rank(a)-rank(b)).slice(0,20);
+    function rank(x){ const n=x.name.toLowerCase(); return n===ql||x.code===q?0 : n.startsWith(ql)?1 : 2; }
+    const failed=j.failed_markets||j.upstream?.failed_markets||[];
+    return {items, note: failed.length? `${failed.join("·")} 시장 조회 실패로 결과가 빠졌을 수 있습니다.` : ""};
+  }catch(e){
+    return {items:[], note:"중계 서버에 연결하지 못했습니다."};
+  }
+}
+function paint(){
+  resEl.innerHTML = (results.length ? results.map((r,i)=>`<div class="${i===active?"active":""}" data-k="${i}"><span>${esc(r.name)}</span><small>${esc(r.code)} · ${esc(r.market)}</small></div>`).join("") : (searchNote? "" : `<div><small>검색 결과 없음</small></div>`))
+    + (searchNote? `<div class="rnote"><small>⚠ ${esc(searchNote)}</small></div>` : "");
+  resEl.style.display="block";
+}
+// mousedown + preventDefault: 클릭해도 검색창으로 포커스가 돌아가지 않게
+resEl.addEventListener("mousedown",e=>{ e.preventDefault(); const d=e.target.closest("[data-k]"); if(d) choose(results[+d.dataset.k]); });
+function choose(r){
+  picked=r; qEl.value=r.name; resEl.style.display="none"; addBtn.disabled=false;
+  document.getElementById("picked").textContent=`선택됨: ${r.name} (${r.code} · ${r.market})`;
+  document.getElementById("qty").focus();
+}
+document.getElementById("addForm").addEventListener("submit",async e=>{
+  e.preventDefault();
+  const qty=Math.floor(Number(document.getElementById("qty").value));
+  if(!(qty>0)){ document.getElementById("qty").focus(); return; }
+  if(!picked){ // 목록에서 고르지 않았으면 이름/코드 일치 → 첫 결과 순으로 확정
+    const q=qEl.value.trim(); if(!q) return;
+    const found = results.length && resultsQuery===q ? {items:results, note:searchNote} : await lookup(q);
+    picked = found.items.find(r=>r.name===q||r.code===q) || found.items[0];
+    if(!picked){ document.getElementById("picked").textContent=found.note || `'${q}' 종목을 찾지 못했습니다.`; return; }
+  }
+  const avg=Number(document.getElementById("avg").value)||null;
+  const ex=holdings.find(h=>h.code===picked.code);
+  if(ex){ // 같은 종목이면 수량 합산, 평단은 가중평균
+    if(avg&&ex.avg) ex.avg=Math.round((ex.avg*ex.qty+avg*qty)/(ex.qty+qty)); else if(avg) ex.avg=avg;
+    ex.qty+=qty;
+  } else holdings.push({code:picked.code,name:picked.name,market:picked.market,qty,avg});
+  save(); e.target.reset(); picked=null; results=[]; resultsQuery=""; resEl.style.display="none";
+  addBtn.disabled=true; document.getElementById("picked").textContent="";
+  await refresh();
+});
+document.getElementById("refreshBtn").addEventListener("click",refresh);
+
+// =====================================================================
+// 정보 게시판: 보유 종목별 공시(DART) + 뉴스(K Skill naver-news-search)
+// =====================================================================
+const board = { data:{}, loadedKey:"", stock:"all", type:"all", loading:false };
+const kst = iso => { if(!iso) return "-"; const d=new Date(iso); return new Date(d.getTime()+9*3600e3).toISOString().slice(0,16).replace("T"," "); };
+const ymd = s => s&&s.length===8 ? `${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6)}` : "-";
+const safeUrl = u => /^https?:\/\//.test(u||"") ? u : "#";
+
+document.querySelector(".tabs").addEventListener("click",e=>{
+  const t=e.target.closest(".tab"); if(!t) return;
+  const v=t.dataset.view;
+  document.querySelectorAll(".tab").forEach(b=>{ const on=b===t; b.classList.toggle("on",on); b.setAttribute("aria-selected",on); });
+  document.getElementById("viewDash").hidden = v!=="dash";
+  document.getElementById("viewBoard").hidden = v!=="board";
+  if(v==="board") loadBoard(false);
+});
+document.getElementById("boardReload").addEventListener("click",()=>loadBoard(true));
+document.getElementById("typeSeg").addEventListener("click",e=>{
+  const b=e.target.closest("button"); if(!b) return;
+  board.type=b.dataset.type; document.querySelectorAll("#typeSeg button").forEach(x=>x.classList.toggle("on",x===b)); renderBoard();
+});
+document.getElementById("stockChips").addEventListener("click",e=>{
+  const b=e.target.closest(".chip"); if(!b) return; board.stock=b.dataset.code; renderBoard();
+});
+
+async function getJSON(url){
+  try{ const r=await fetch(url); const j=await r.json().catch(()=>({})); return r.ok? j : {...j, _failed:true, message:j.message||j.error||`HTTP ${r.status}`}; }
+  catch(e){ return {_failed:true, message:"중계 서버에 연결하지 못했습니다."}; }
+}
+
+async function loadBoard(force){
+  const key=holdings.map(h=>h.code).sort().join(",");
+  if(!force && board.loadedKey===key) return renderBoard();
+  if(API===null){ board.data={}; board.loadedKey=""; renderBoard("중계 서버(node stock-dashboard/server.js)가 꺼져 있어 공시·뉴스를 불러올 수 없습니다."); return; }
+  board.loading=true; renderBoard();
+  const entries = await Promise.all(holdings.map(async h=>{
+    const [news, disc] = await Promise.all([
+      getJSON(`${API}/api/news?name=${encodeURIComponent(h.name)}`),
+      getJSON(`${API}/api/disclosures?code=${encodeURIComponent(h.code)}`),
+    ]);
+    return [h.code, {h, news, disc}];
+  }));
+  board.data=Object.fromEntries(entries); board.loadedKey=key; board.loading=false;
+  if(board.stock!=="all" && !board.data[board.stock]) board.stock="all";
+  renderBoard();
+}
+
+function boardPosts(){
+  const posts=[];
+  for(const {h,news,disc} of Object.values(board.data)){
+    (disc.items||[]).forEach(d=>posts.push({type:"disclosure", h, t:d.filed_on+"0000", ...d, srcInfo:disc.source}));
+    (news.items||[]).forEach(n=>posts.push({type:"news", h, t:kst(n.published_at).replace(/\D/g,""), ...n, srcInfo:news.source}));
+  }
+  return posts.sort((a,b)=>b.t.localeCompare(a.t) || (a.type==="disclosure"?-1:1));
+}
+
+function renderBoard(fatal){
+  // 종목 칩
+  const all=boardPosts();
+  const countOf=code=>all.filter(p=>code==="all"||p.h.code===code).length;
+  document.getElementById("stockChips").innerHTML=[{code:"all",name:"전체 종목"},...holdings].map(h=>
+    `<button class="chip ${board.stock===h.code?"on":""}" data-code="${esc(h.code)}">${esc(h.name)} <small>${board.loading?"":countOf(h.code)}</small></button>`).join("");
+  document.getElementById("boardCnt").textContent = all.length? all.length : "";
+
+  // 경고: 서버 꺼짐 / DART 키 없음 / 일부 실패
+  const warns=[];
+  if(fatal) warns.push(esc(fatal));
+  const vals=Object.values(board.data);
+  const noKey=vals.find(v=>v.disc.configured===false);
+  if(noKey) warns.push(`<b>공시를 불러오지 못했습니다: DART 인증키(API_K_DART)가 없습니다.</b><br>${esc(noKey.disc.how_to)}<br>그동안은 각 종목 글 목록 아래 <b>[DART에서 직접 보기]</b> 링크를 이용하세요. 지금은 뉴스만 표시됩니다.`);
+  const failed=vals.flatMap(v=>[v.news._failed?`${v.h.name} 뉴스: ${v.news.message}`:null, v.disc._failed?`${v.h.name} 공시: ${v.disc.message}`:null]).filter(Boolean);
+  if(failed.length) warns.push("일부 조회 실패 — "+failed.map(esc).join(" / "));
+  const w=document.getElementById("boardWarn"); w.innerHTML=warns.join("<hr style='border:none;border-top:1px solid currentColor;opacity:.2'>"); w.style.display=warns.length?"block":"none";
+
+  // 글 목록
+  const el=document.getElementById("posts");
+  if(board.loading){ el.innerHTML=`<div class="card loading">보유 종목 ${holdings.length}개의 공시·뉴스를 불러오는 중…</div>`; renderSources(); return; }
+  if(!holdings.length){ el.innerHTML=`<div class="card loading">보유 종목을 먼저 추가해 주세요.</div>`; renderSources(); return; }
+  const posts=all.filter(p=>(board.stock==="all"||p.h.code===board.stock)&&(board.type==="all"||p.type===board.type));
+  let html = posts.length ? posts.slice(0,150).map(postHTML).join("") : `<div class="card loading">표시할 글이 없습니다.</div>`;
+  // DART 키가 없을 때: 종목별 외부 공시 바로가기
+  if(noKey && board.type!=="news"){
+    const hs=holdings.filter(h=>board.stock==="all"||h.code===board.stock);
+    html += `<div class="post"><div class="meta"><span class="tag disclosure">공시</span>DART 인증키 설정 전 임시 바로가기</div>`+
+      hs.map(h=>`<div style="margin:4px 0">${esc(h.name)} (${esc(h.code)}) — <a href="https://dart.fss.or.kr/dsab007/main.do" target="_blank" rel="noopener">DART에서 직접 보기</a> (회사명 '${esc(h.name)}'로 검색)</div>`).join("")+
+      `<div class="src">출처: 금융감독원 전자공시시스템 dart.fss.or.kr — 링크로 이동해 직접 확인하는 방식이며, 이 화면에서 내용을 가져오지 않았습니다.</div></div>`;
+  }
+  el.innerHTML=html;
+  renderSources();
+}
+
+function postHTML(p){
+  if(p.type==="disclosure"){
+    return `<article class="post">
+      <div class="meta"><span class="tag disclosure">공시</span><span class="tag stock">${esc(p.h.name)}</span>접수일 ${ymd(p.filed_on)}${p.market_note?` · 비고 ${esc(p.market_note)}`:""}</div>
+      <a class="ttl" href="${safeUrl(p.url)}" target="_blank" rel="noopener">${esc(p.title)}</a>
+      <div class="sum">제출인: ${esc(p.filer)}</div>
+      <div class="src">출처: 금융감독원 전자공시시스템(DART) · 접수번호 <b>${esc(p.rcept_no)}</b> · <a href="${safeUrl(p.url)}" target="_blank" rel="noopener">DART 원문 보기</a><br>
+      근거: DART OpenAPI 공시검색(list.json), 고유번호 ${esc(p.srcInfo?.query?.corp_code||"-")}, 조회 ${kst(p.srcInfo?.retrieved_at)} KST</div>
+    </article>`;
+  }
+  return `<article class="post">
+    <div class="meta"><span class="tag news">뉴스</span><span class="tag stock">${esc(p.h.name)}</span>${kst(p.published_at)} KST${p.publisher_domain?` · ${esc(p.publisher_domain)}`:""}</div>
+    <a class="ttl" href="${safeUrl(p.url)}" target="_blank" rel="noopener">${esc(p.title)}</a>
+    <p class="sum">기사 요약: ${esc(p.summary)}</p>
+    <div class="src">출처: ${esc(p.publisher_domain||"언론사")} · <a href="${safeUrl(p.url)}" target="_blank" rel="noopener">기사 원문</a>${p.naver_url&&p.naver_url!==p.url?` · <a href="${safeUrl(p.naver_url)}" target="_blank" rel="noopener">네이버 뉴스</a>`:""}<br>
+    근거: 네이버 검색 Open API(뉴스) → K Skill naver-news-search, 검색어 '${esc(p.srcInfo?.query?.q||p.h.name)}', 최신순, 조회 ${kst(p.srcInfo?.retrieved_at)} KST</div>
+  </article>`;
+}
+
+function renderSources(){
+  const rows=[];
+  for(const {h,news,disc} of Object.values(board.data)){
+    rows.push(`<tr><td>뉴스 · ${esc(h.name)}</td><td>네이버 검색 Open API (뉴스)</td><td>K Skill naver-news-search<br><code>k-skill-proxy /v1/naver-news/search</code></td>
+      <td>q='${esc(h.name)}', sort=date, display=20<br>${esc(news.source?.filter||"")}</td><td>${news.source?kst(news.source.retrieved_at):"-"}</td>
+      <td>${news._failed?"실패: "+esc(news.message):(news.items||[]).length+"건"}</td></tr>`);
+    rows.push(`<tr><td>공시 · ${esc(h.name)}</td><td>금융감독원 DART OpenAPI (공시검색)</td><td>K Skill k-dart 방식<br><code>opendart.fss.or.kr/api/list.json</code></td>
+      <td>${disc.source?`corp_code=${esc(disc.source.query.corp_code)}, ${ymd(disc.source.query.bgn_de)} ~ ${ymd(disc.source.query.end_de)}`:"종목코드 "+esc(h.code)+", 최근 90일"}</td>
+      <td>${disc.source?kst(disc.source.retrieved_at):"-"}</td>
+      <td>${disc.configured===false?"인증키 없음":disc._failed?"실패: "+esc(disc.message):(disc.items||[]).length+"건"}</td></tr>`);
+  }
+  document.getElementById("srcBody").innerHTML = rows.join("") || `<tr><td colspan="6" class="empty">아직 불러온 정보가 없습니다.</td></tr>`;
+}
+
+render();
+(async()=>{
+  if(API){ // 파일로 연 경우 중계 서버가 떠 있는지 확인
+    try{ await fetch(`${API}/api/search?q=005930`); }
+    catch(e){ API=null; }
+  }
+  refresh();
+})();
+</script>
+</body>
+</html>
